@@ -54,8 +54,9 @@ _DROP_RESPONSE_HEADERS = ("content-length", "transfer-encoding", "content-encodi
 # or it already holds MILES_SESSION_MAX_TURNS completions, the next request gets an empty "stop"
 # reply without reaching the backend or being recorded: the harness ends its episode and the sample
 # keeps every real turn. Forwarded turns get max_tokens clamped so the session never exceeds the
-# token budget. 0 (default) disables each limit.
+# token budget, and to MILES_SESSION_MAX_TURN_TOKENS per turn. 0 (default) disables each limit.
 _SESSION_MAX_TOKENS = int(os.environ.get("MILES_SESSION_MAX_TOKENS") or 0)
+_SESSION_MAX_TURN_TOKENS = int(os.environ.get("MILES_SESSION_MAX_TURN_TOKENS") or 0)
 _SESSION_MAX_TURNS = int(os.environ.get("MILES_SESSION_MAX_TURNS") or 0)
 _SESSION_MIN_TURN_TOKENS = int(os.environ.get("MILES_SESSION_MIN_TURN_TOKENS") or 1024)
 
@@ -69,9 +70,12 @@ def _over_session_budget(num_prompt_tokens: int, num_assistant: int) -> str | No
 
 
 def _clamp_to_session_budget(request_body: dict, num_prompt_tokens: int) -> None:
-    if not _SESSION_MAX_TOKENS:
+    limits = [_SESSION_MAX_TOKENS - num_prompt_tokens] if _SESSION_MAX_TOKENS else []
+    if _SESSION_MAX_TURN_TOKENS:
+        limits.append(_SESSION_MAX_TURN_TOKENS)
+    if not limits:
         return
-    room = _SESSION_MAX_TOKENS - num_prompt_tokens
+    room = min(limits)
     for key in ("max_tokens", "max_completion_tokens"):
         if request_body.get(key) is not None:
             request_body[key] = min(int(request_body[key]), room)
