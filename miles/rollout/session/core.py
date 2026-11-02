@@ -11,6 +11,7 @@ HTTP-agnostic: the FastAPI adapter (``sessions.py`` + ``server.py``) turns each 
 import asyncio
 import json
 import logging
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -47,6 +48,47 @@ JSON_MEDIA_TYPE = "application/json"
 # upstream's copy puts two of each on the wire; aiohttp's parser rejects that
 # outright with "Duplicate 'Server' header found" instead of reading the body.
 _DROP_RESPONSE_HEADERS = ("content-length", "transfer-encoding", "content-encoding", "server", "date")
+
+# Episode budget for agent harnesses that cannot stop themselves (e.g. opencode run by NeMo Gym).
+# Once a session's prompt leaves less than MILES_SESSION_MIN_TURN_TOKENS of MILES_SESSION_MAX_TOKENS,
+# or it already holds MILES_SESSION_MAX_TURNS completions, the next request gets an empty "stop"
+# reply without reaching the backend or being recorded: the harness ends its episode and the sample
+# keeps every real turn. Forwarded turns get max_tokens clamped so the session never exceeds the
+# token budget. 0 (default) disables each limit.
+_SESSION_MAX_TOKENS = int(os.environ.get("MILES_SESSION_MAX_TOKENS") or 0)
+_SESSION_MAX_TURNS = int(os.environ.get("MILES_SESSION_MAX_TURNS") or 0)
+_SESSION_MIN_TURN_TOKENS = int(os.environ.get("MILES_SESSION_MIN_TURN_TOKENS") or 1024)
+
+
+def _over_session_budget(num_prompt_tokens: int, num_assistant: int) -> str | None:
+    if _SESSION_MAX_TURNS and num_assistant >= _SESSION_MAX_TURNS:
+        return "turns"
+    if _SESSION_MAX_TOKENS and num_prompt_tokens + _SESSION_MIN_TURN_TOKENS > _SESSION_MAX_TOKENS:
+        return "tokens"
+    return None
+
+
+def _clamp_to_session_budget(request_body: dict, num_prompt_tokens: int) -> None:
+    if not _SESSION_MAX_TOKENS:
+        return
+    room = _SESSION_MAX_TOKENS - num_prompt_tokens
+    for key in ("max_tokens", "max_completion_tokens"):
+        if request_body.get(key) is not None:
+            request_body[key] = min(int(request_body[key]), room)
+    if request_body.get("max_tokens") is None and request_body.get("max_completion_tokens") is None:
+        request_body["max_tokens"] = room
+
+
+def _budget_stop_response(session_id: str, model, num_prompt_tokens: int, reason: str) -> dict:
+    return {
+        "id": f"chatcmpl-budget-{session_id}",
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": model or "model",
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": ""}, "finish_reason": "stop"}],
+        "usage": {"prompt_tokens": num_prompt_tokens, "completion_tokens": 0, "total_tokens": num_prompt_tokens},
+        "miles_session_budget_stop": reason,
+    }
 
 
 @dataclass
@@ -372,6 +414,20 @@ class SessionCore:
             request_messages = request_body.get("messages", [])
             prompt_token_ids = request_body["input_ids"]
             logger.debug("Using TITO input_ids: %d tokens", len(prompt_token_ids))
+
+            budget_stop = _over_session_budget(len(prompt_token_ids), session.num_assistant)
+            if budget_stop is not None:
+                logger.info(
+                    "Session %s over its %s budget (%d prompt tokens, %d turns): answering stop",
+                    session_id, budget_stop, len(prompt_token_ids), session.num_assistant,
+                )
+                response = _budget_stop_response(
+                    session_id, request_body.get("model"), len(prompt_token_ids), budget_stop
+                )
+                return _chat_client_response(
+                    {"status_code": 200, "headers": {}}, response, prepared.response_intent
+                )
+            _clamp_to_session_budget(request_body, len(prompt_token_ids))
 
             # prepare_token_ids_and_request_args applied any retry rollback, so token_ids is
             # the checkpoint this request builds on.
