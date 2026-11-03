@@ -400,6 +400,18 @@ class SessionCore:
         session = self.registry.get_session(session_id)
         if session.closing:
             raise SessionNotFoundError(f"session not found: session_id={session_id}")
+        if getattr(self.registry, "is_drained", None) and self.registry.is_drained(session_id):
+            # The rollout this session belongs to was aborted: end the episode at its next model call
+            # instead of letting the agent keep generating for a sample that will be dropped.
+            client_args = parse_chat_request(body)
+            intent = ClientResponseIntent(
+                stream=bool(client_args.get("stream")), logprobs=bool(client_args.get("logprobs"))
+            )
+            return _chat_client_response(
+                {"status_code": 200, "headers": {}},
+                _budget_stop_response(session_id, client_args.get("model"), 0, "drain"),
+                intent,
+            )
 
         # --- Phase 1: prepare request (lock held briefly) ---
         async with session.lock:

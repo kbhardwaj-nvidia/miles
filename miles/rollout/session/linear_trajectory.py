@@ -389,6 +389,11 @@ class SessionRegistry:
         message_matcher: SessionMessageMatcher | None = None,
     ):
         self.sessions: dict[str, LinearTrajectory] = {}
+        # Drain support (local patch): a rollout abort marks every session created so far as drained;
+        # sessions created afterwards (the next rollout) are unaffected.
+        self._next_seq = 0
+        self._session_seq: dict[str, int] = {}
+        self._drain_below = 0
         self.tokenizer = tokenizer
         self.tito_tokenizer = tito_tokenizer
         self.comparator = tito_tokenizer.create_comparator()
@@ -409,6 +414,8 @@ class SessionRegistry:
             f"run with --use-session-server v2"
         )
         session_id = uuid.uuid4().hex
+        self._session_seq[session_id] = self._next_seq
+        self._next_seq += 1
         self.sessions[session_id] = LinearTrajectory(
             evaluation=evaluation,
             sampling_defaults=dict(sampling_defaults or {}),
@@ -423,8 +430,17 @@ class SessionRegistry:
         return session
 
     def remove_session(self, session_id: str) -> None:
+        self._session_seq.pop(session_id, None)
         if self.sessions.pop(session_id, None) is None:
             raise SessionNotFoundError(f"session not found: session_id={session_id}")
+
+    def drain(self) -> int:
+        """Mark every existing session as drained; returns how many are still open."""
+        self._drain_below = self._next_seq
+        return len(self.sessions)
+
+    def is_drained(self, session_id: str) -> bool:
+        return self._session_seq.get(session_id, self._drain_below) < self._drain_below
 
     def compute_session_mismatch(self, session: LinearTrajectory) -> list[dict] | None:
         """Compare accumulated token IDs against canonical chat template output.

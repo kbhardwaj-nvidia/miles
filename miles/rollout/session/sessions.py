@@ -113,6 +113,13 @@ def setup_session_routes(app, backend, config: SessionServerConfig, *, use_addit
             extra_key=params.extra_key,
         )
 
+    @app.post("/drain")
+    async def drain():
+        # Local patch: called by the agent plugin's abort hook when a rollout is aborted.
+        if not hasattr(registry, "drain"):
+            return JSONResponse(status_code=501, content={"error": "drain is only implemented for session server v1"})
+        return JSONResponse(content={"open_sessions_drained": registry.drain()})
+
     @app.get("/sessions/{session_id}")
     async def get_session(session_id: str):
         return await core.get_session(session_id)
