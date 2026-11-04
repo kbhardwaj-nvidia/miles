@@ -1,0 +1,11 @@
+# Held-out eval for --eval-config. miles_opd_eval tells miles_ext.opd_reward to return the Gym grade
+# without teacher scoring. Replace the path with your held-out JSONL (same row format as training).
+eval:
+  datasets:
+    - name: swe_eval
+      path: /path/to/heldout.jsonl
+      input_key: prompt
+      metadata_key: metadata
+      n_samples_per_eval_prompt: 4
+      metadata_overrides:
+        miles_opd_eval: true
