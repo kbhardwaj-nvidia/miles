@@ -83,6 +83,7 @@ keys = ["GYM_AGENT_URLS", "GYM_RUN_TIMEOUT", "OPD_TASK_REWARD",
         "MILES_SESSION_MAX_TOKENS", "MILES_SESSION_MAX_TURN_TOKENS", "MILES_SESSION_MAX_TURNS"]
 env = {k: os.environ[k] for k in keys}
 env["PYTHONPATH"] = os.environ["JOB_PYTHONPATH"]
+env["PYTHONUNBUFFERED"] = "1"  # live driver and worker logs (Ray buffers their stdout otherwise)
 print(json.dumps({"env_vars": env}))')
 
 ray job submit --address="${RAY_ADDRESS:-http://127.0.0.1:8265}" --runtime-env-json="$RUNTIME_ENV" \

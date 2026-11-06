@@ -9,9 +9,9 @@ import os
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from tests.fast.fixtures.session_fixtures import make_session_server_config
 
 from miles.rollout.session.sessions import setup_session_routes
-from tests.fast.fixtures.session_fixtures import make_session_server_config
 
 STUDENT_HF = os.environ.get("STUDENT_HF")
 pytestmark = pytest.mark.skipif(not STUDENT_HF, reason="set STUDENT_HF to a Qwen3.5 checkpoint dir (tokenizer)")

@@ -17,6 +17,7 @@ End-to-end training workflows — the place to start.
 - **[multi_policy](/examples/multi-policy)**: Two policies in one run — a solver answering gsm8k, and a verifier scored on ruling correctly about the solver's answers.
 - **[on_policy_distillation](/examples/on-policy-distillation)**: Teacher–student distillation on the student's own rollouts, run inside the on-policy training loop.
   - **[qwen3_5_35b_selfdistill](/examples/on-policy-distillation/qwen3-5-35b-selfdistill)**: Two-phase self-distillation of Qwen3.5-35B-A3B on one 8xH200 node, with an in-process Megatron teacher.
+- **[opd_swe](/examples/opd-swe)**: On-policy distillation on long multi-turn coding-agent episodes (opencode in NeMo Gym sandboxes), Qwen3.5-122B-A10B teacher to Qwen3.5-35B-A3B student.
 - **[ppo](/examples/ppo)**: Actor-critic PPO with GAE advantages, where the critic shares the actor's train GPUs.
 - **[retool_v2](/examples/retool-v2)**: Tool-enabled language model generation with sandboxed Python code execution interleaved with thinking.
 - **[swe-agent-harbor-docker](/examples/swe-agent-harbor-docker)**: Trains coding and terminal agents with Harbor-managed local Docker sandboxes and verifier rewards.

@@ -268,6 +268,7 @@
        "examples/multi-policy",
        "examples/on-policy-distillation",
        "examples/on-policy-distillation/qwen3-5-35b-selfdistill",
+       "examples/opd-swe",
        "examples/ppo",
        "examples/retool-v2",
        "examples/swe-agent-harbor-docker"

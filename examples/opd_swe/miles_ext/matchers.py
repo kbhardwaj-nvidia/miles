@@ -58,7 +58,8 @@ def _tool_calls_match_allowing_repairs(stored: dict[str, Any], replayed: dict[st
     if len(stored_calls) != len(replayed_calls):
         return False
     return all(
-        _tool_call_matches(s, r) or _repaired_call_matches(s, r) for s, r in zip(stored_calls, replayed_calls, strict=True)
+        _tool_call_matches(s, r) or _repaired_call_matches(s, r)
+        for s, r in zip(stored_calls, replayed_calls, strict=True)
     )
 
 

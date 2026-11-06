@@ -104,8 +104,12 @@ async def run(
         logger.error("Gym /run failed for %s: %r", metadata.get("instance_id"), e)
         return {"reward": 0.0, "gym_error": repr(e)[:2000], "gym_seconds": time.monotonic() - t0}
     reward = float(response.get("reward") or 0.0)
-    return {"reward": reward, "gym_error": None, "gym_seconds": time.monotonic() - t0,
-            "gym_result": _scalar_fields(response)}
+    return {
+        "reward": reward,
+        "gym_error": None,
+        "gym_seconds": time.monotonic() - t0,
+        "gym_result": _scalar_fields(response),
+    }
 
 
 async def abort(args) -> None:

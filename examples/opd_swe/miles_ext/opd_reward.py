@@ -56,7 +56,9 @@ def post_process_rewards(args: Namespace, samples: list[Sample], **kwargs: Any) 
             # Aborted samples are dropped by check_no_aborted before this point; an unscored non-empty
             # response would turn the reverse KL into -log p_student, so refuse it.
             if sample.response_length > 0:
-                raise ValueError(f"sample {sample.index} has a {sample.response_length}-token response but no teacher score")
+                raise ValueError(
+                    f"sample {sample.index} has a {sample.response_length}-token response but no teacher score"
+                )
             sample.teacher_log_probs = []
     train_rewards = list(task_rewards) if os.environ.get("OPD_TASK_REWARD") == "1" else [0.0] * len(samples)
     return task_rewards, train_rewards

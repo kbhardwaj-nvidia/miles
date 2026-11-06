@@ -21,7 +21,12 @@ def _load(name, path):
     return module
 
 
-for pkg in ("miles", "miles.utils", "miles.utils.chat_template_utils", "miles.utils.chat_template_utils.message_matcher_hub"):
+for pkg in (
+    "miles",
+    "miles.utils",
+    "miles.utils.chat_template_utils",
+    "miles.utils.chat_template_utils.message_matcher_hub",
+):
     sys.modules.setdefault(pkg, types.ModuleType(pkg))
 _load("miles.utils.chat_template_utils.message_matcher_hub.utils", HUB / "utils.py")
 _load("miles.utils.chat_template_utils.message_matcher_hub.funcs", HUB / "funcs.py")
@@ -46,24 +51,82 @@ def invalid(cid, tool):
 
 CASES = [
     ("identical", asst([call("c1", "bash", {"command": "ls"})]), asst([call("c1", "bash", {"command": "ls"})]), True),
-    ("reasoning dropped", asst([call("c1", "bash", {"command": "ls"})]), asst([call("c1", "bash", {"command": "ls"})], reasoning=None), True),
+    (
+        "reasoning dropped",
+        asst([call("c1", "bash", {"command": "ls"})]),
+        asst([call("c1", "bash", {"command": "ls"})], reasoning=None),
+        True,
+    ),
     ("invalid repair", asst([call("c1", "todo", {"x": 1})]), asst([invalid("c1", "todo")], reasoning=None), True),
-    ("invalid repair of garbled name", asst([call("c1", "gre<parameter=path", {})]), asst([invalid("c1", "gre<parameter=path")]), True),
-    ("lowercase repair", asst([call("c1", "Bash", {"command": "ls"})]), asst([call("c1", "bash", {"command": "ls"})]), True),
-    ("lowercase repair, args changed", asst([call("c1", "Bash", {"command": "ls"})]), asst([call("c1", "bash", {"command": "pwd"})]), False),
-    ("mixed: one repaired, one same", asst([call("c1", "todo", {}), call("c2", "read", {"filePath": "/a"})]),
-     asst([invalid("c1", "todo"), call("c2", "read", {"filePath": "/a"})]), True),
-    ("swapped call order", asst([call("c1", "todo", {}), call("c2", "read", {"filePath": "/a"})]),
-     asst([call("c2", "read", {"filePath": "/a"}), invalid("c1", "todo")]), False),
+    (
+        "invalid repair of garbled name",
+        asst([call("c1", "gre<parameter=path", {})]),
+        asst([invalid("c1", "gre<parameter=path")]),
+        True,
+    ),
+    (
+        "lowercase repair",
+        asst([call("c1", "Bash", {"command": "ls"})]),
+        asst([call("c1", "bash", {"command": "ls"})]),
+        True,
+    ),
+    (
+        "lowercase repair, args changed",
+        asst([call("c1", "Bash", {"command": "ls"})]),
+        asst([call("c1", "bash", {"command": "pwd"})]),
+        False,
+    ),
+    (
+        "mixed: one repaired, one same",
+        asst([call("c1", "todo", {}), call("c2", "read", {"filePath": "/a"})]),
+        asst([invalid("c1", "todo"), call("c2", "read", {"filePath": "/a"})]),
+        True,
+    ),
+    (
+        "swapped call order",
+        asst([call("c1", "todo", {}), call("c2", "read", {"filePath": "/a"})]),
+        asst([call("c2", "read", {"filePath": "/a"}), invalid("c1", "todo")]),
+        False,
+    ),
     ("invalid names another tool", asst([call("c1", "todo", {})]), asst([invalid("c1", "lfs")]), False),
     ("invalid with different call id", asst([call("c1", "todo", {})]), asst([invalid("c9", "todo")]), False),
-    ("invalid without error field", asst([call("c1", "todo", {})]), asst([call("c1", "invalid", {"tool": "todo"})]), False),
-    ("content differs", asst([call("c1", "todo", {})]), asst([invalid("c1", "todo")], content="Something else."), False),
-    ("reasoning differs (present)", asst([call("c1", "bash", {"command": "ls"})]), asst([call("c1", "bash", {"command": "ls"})], reasoning="other"), False),
-    ("extra call", asst([call("c1", "todo", {})]), asst([invalid("c1", "todo"), call("c2", "bash", {"command": "ls"})]), False),
-    ("valid call renamed to invalid", asst([call("c1", "bash", {"command": "ls"})]), asst([invalid("c1", "read")]), False),
+    (
+        "invalid without error field",
+        asst([call("c1", "todo", {})]),
+        asst([call("c1", "invalid", {"tool": "todo"})]),
+        False,
+    ),
+    (
+        "content differs",
+        asst([call("c1", "todo", {})]),
+        asst([invalid("c1", "todo")], content="Something else."),
+        False,
+    ),
+    (
+        "reasoning differs (present)",
+        asst([call("c1", "bash", {"command": "ls"})]),
+        asst([call("c1", "bash", {"command": "ls"})], reasoning="other"),
+        False,
+    ),
+    (
+        "extra call",
+        asst([call("c1", "todo", {})]),
+        asst([invalid("c1", "todo"), call("c2", "bash", {"command": "ls"})]),
+        False,
+    ),
+    (
+        "valid call renamed to invalid",
+        asst([call("c1", "bash", {"command": "ls"})]),
+        asst([invalid("c1", "read")]),
+        False,
+    ),
     ("user message differs", {"role": "user", "content": "a"}, {"role": "user", "content": "b"}, False),
-    ("tool message same", {"role": "tool", "tool_call_id": "c1", "content": "ok"}, {"role": "tool", "tool_call_id": "c1", "content": "ok"}, True),
+    (
+        "tool message same",
+        {"role": "tool", "tool_call_id": "c1", "content": "ok"},
+        {"role": "tool", "tool_call_id": "c1", "content": "ok"},
+        True,
+    ),
 ]
 
 failures = 0
